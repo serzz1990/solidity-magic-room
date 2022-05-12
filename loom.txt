@@ -1,3 +1,0 @@
-local address: 0x7725387fD0757Fe76DEAA597650ea371585C37bd
-local address base64: dyU4f9B1f+dt6qWXZQ6jcVhcN70=
-private_key: wHlbmLHXLY+9Nu1QQZDU3X37QrQsEj1sAIS/yAXu3YzcNGv7xDY2UIjYGo2aci50bUSrEEp7CPZVYCh/eP2qQg==
