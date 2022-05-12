@@ -1,0 +1,420 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+<div id="app">
+  <div id="game">
+    <div id="dashboard" v-if="cycle">
+      <div class="item">
+        <div>{{ cycleIndex + 1 }}</div>
+        <div>Кол вошедших</div>
+      </div>
+      <div class="item">
+        <div>{{ cycle.price }}</div>
+        <div>Мин цена входа</div>
+      </div>
+      <div class="item">
+        <div>{{ cycle.vip }}$</div>
+        <div>VIP</div>
+      </div>
+      <div class="item">
+        <div>{{ cycle.bank }}</div>
+        <div>Банк</div>
+      </div>
+    </div>
+
+    <div id="grid">
+      <div>
+        <div id="room" v-if="game">
+          <template v-if="cycle">
+         <span class="place" v-for="item in game.maxPlayers" :class="{ fill: lastMe && lastMe.place === item - 1 && lastMe.inside, vip: cycle.vipPlace === item - 1, leave: cycle.leavePlace === item - 1 }" :key="item">
+          <span v-if="cycle.vipPlace === item - 1">VIP</span>
+        </span>
+          </template>
+        </div>
+        <div>
+          <div><span class="default"></span> Обычное место</div>
+          <div><span class="priority"></span> Приоритетное место</div>
+          <div><span class="my"></span> Мое место</div>
+          <div><span class="leaveplace"></span> Выходит</div>
+          <div><span class="vipplace"></span> VIP</div>
+        </div>
+      </div>
+      <div id="data">
+        <div id="enter" v-if="!lastMe || !lastMe.inside">
+          <button @click="enter">Войти</button>
+          <input @keypress.enter="enter" v-model="price">
+        </div>
+
+        <div id="results">
+          <table cellspacing="10">
+            <tr>
+              <th>Цена входа</th>
+              <th>Награды</th>
+              <th>Заработал</th>
+              <th></th>
+            </tr>
+            <tr v-if="total">
+              <td><b>{{ total.price }}</b></td>
+              <td><b>{{ total.reward }}</b></td>
+              <td><b>{{ total.result }}</b></td>
+              <td></td>
+            </tr>
+            <tr v-for="item in results">
+              <td>{{ item.price }}</td>
+              <td>{{ item.reward }}</td>
+              <td>{{ item.result }}</td>
+              <td><span v-if="!item.inside">Вышел</span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  #app {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #grid {
+    margin-top: 200px;
+    align-items: flex-start;
+    height: 100%;
+    display: flex;
+  }
+  #data {
+    width: 500px;
+    margin-left: 50px;
+  }
+  #dashboard {
+    background: antiquewhite;
+    border-radius: 10px;
+    position: fixed;
+    top: 10px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  #dashboard .item {
+    background: #fff;
+    margin: 10px;
+    text-align: center;
+    padding: 10px;
+  }
+  #room {
+    background: black;
+    width: 250px;
+    height: 250px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  .place {
+    display: block;
+    width: 20px;
+    height: 20px;
+    margin: 10px;
+    border: 5px solid transparent;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: yellow;
+  }
+  .place:nth-child(2),
+  .place:nth-child(3),
+  .place:nth-child(4) {
+    background: aquamarine;
+  }
+  #enter {
+    margin: 20px;
+  }
+  .vip {
+    border-color: coral;
+  }
+  .fill {
+    background-color: green!important;
+  }
+  .leave {
+    border-color: red;
+  }
+  .default {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: yellow;
+  }
+  .priority {
+    display: inline-block;
+    background: aquamarine;
+    width: 20px;
+    height: 20px;
+  }
+  .my {
+    display: inline-block;
+    background: green;
+    width: 20px;
+    height: 20px;
+  }
+  .vipplace {
+    display: inline-block;
+    border: 5px solid coral;
+    width: 10px;
+    height: 10px;
+  }
+  .leaveplace {
+    display: inline-block;
+    border: 5px solid red;
+    width: 10px;
+    height: 10px;
+  }
+  #results {
+    background: antiquewhite;
+    font-size: 11px;
+    max-height: 500px;
+    overflow: auto;
+  }
+  .result {
+    display: flex;
+    margin: 5px;
+  }
+  .result .item {
+    padding: 5px;
+    margin: 5px;
+    background: aliceblue;
+  }
+  #total {
+
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<script>
+  const probability = [0.4, 0.1, 0.1, 0.1, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4];
+
+  const app = new Vue({
+    el: '#app',
+    data: {
+      game: null,
+      cycleIndex: 0,
+      me: [],
+      price: 0,
+      lastMe: null
+    },
+    computed: {
+      cycle () {
+        return this.game ? this.game.cycles[this.cycleIndex] || this.game.cycles[this.game.cycles.length-1] : null;
+      },
+      results () {
+        return (this.lastMe && this.lastMe.inside ? this.me.concat(this.lastMe) : this.me).reverse()
+      },
+      total () {
+        if (this.results.length) {
+          return this.results.reduce((res, item) => {
+            res.price = round(res.price + (+item.price))
+            res.result = round(res.result + (+item.result))
+            res.reward = round(res.reward + (+item.reward))
+            return res
+          }, {
+            result: 0,
+            price: 0,
+            reward: 0
+          })
+        } else {
+          return null
+        }
+      }
+    },
+    methods: {
+      createGame () {
+        this.game = generateGame({
+          maxPlayers: 10
+        });
+        this.cycleIndex = 0;
+        this.me = [];
+        this.price = 0;
+        this.next()
+      },
+      next () {
+        setTimeout(() => {
+          if (this.cycleIndex < this.game.cycles.length) {
+            this.cycleIndex++
+            if (this.lastMe && !this.lastMe.inside) {
+              this.me.push(
+                this.lastMe
+              )
+              this.lastMe = null
+            } else if (this.lastMe) {
+              this.lastMe = emulate(this.game, {
+                enter: this.lastMe.enter,
+                cycleIndex: this.cycleIndex,
+                price: this.lastMe.price,
+                place: this.lastMe.place
+              })
+            }
+            this.next()
+          }
+        }, getRndInteger(10, 1000))
+      },
+      enter () {
+        if (this.price >= this.cycle.price) {
+          const place = randomInArray(probability)
+          const cycleIndex = this.cycleIndex
+          const enter = cycleIndex
+          const price = this.price
+          this.lastMe = emulate(this.game, { enter, cycleIndex, price, place })
+          this.me.push()
+        } else {
+         alert('Минимальная цена билета ' + this.cycle.price)
+        }
+      }
+    },
+    mounted () {
+      this.createGame()
+    }
+  });
+  // const game = generateGame({ maxPlayers: 10 });
+  // const users = [];
+  // for (let i = 0; i < 10; i++) {
+  //   users.push(emulate(game));
+  // }
+  // console.log(game);
+  // console.table(users.map(user => ({
+  //   inside: user.inside,
+  //   enter: user.enter,
+  //   leave: user.leave,
+  //   i: user.iterations,
+  //   price: user.price,
+  //   reward: user.reward,
+  //   result: user.result
+  // })));
+
+
+  function generateGame ({ maxPlayers = 10 }) {
+    const cycles = [];
+    const bank = { total: 0, fee: 0, bank: 0 };
+    const iterations = getRndInteger(10, 1000);
+    const extraProbabilityPlaces = [1, 2, 3];
+    const tokenomic = {
+      bank: 20,
+      fee: 2,
+      vip: 28,
+      reward: 50
+    };
+    let price = 0;
+    for (let i = 0; i < iterations; i++) {
+      price = round(price + getRndFloat(1, 4));
+      // price = 10;
+      const addToBank = price * (tokenomic.bank / 100);
+      const addToFee = price * (tokenomic.fee / 100);
+      const vip = round(price * (tokenomic.vip / 100));
+
+      bank.total += price
+      bank.bank += addToBank
+      bank.fee = round(bank.fee + addToFee);
+
+      const players = Math.min(maxPlayers, i + 1);
+      const rewardTotal = round(price * (tokenomic.reward / 100));
+      const rewardPerPlayer = round(rewardTotal / players);
+      const prevCycle = cycles[cycles.length - 1];
+      const prevCReward = prevCycle ? prevCycle.creward : 0;
+      const creward = round(rewardPerPlayer + prevCReward);
+      const leavePlace = randomInArray(probability);
+
+      cycles.push({
+        i,
+        price,
+        vip,
+        rewardPerPlayer,
+        rewardTotal,
+        creward,
+        leavePlace,
+        vipPlace: getRndInteger(0, maxPlayers - 1),
+        bank: round(bank.bank),
+        bankPerU: round(bank.bank / players),
+        fee: bank.fee
+      });
+    }
+    return {
+      cycles,
+      iterations,
+      maxPlayers,
+      bank
+    }
+  }
+
+  function emulate (game, { enter, place, cycleIndex, price }) {
+    const me = {
+      enter: enter ? enter : getRndInteger(0, game.iterations - 1),
+      place: place ? place : round(getRndInteger(0, game.maxPlayers - 1)),
+      leave: 0,
+      reward: 0,
+      price: 0,
+      iterations: 0,
+      inside: false
+    }
+    for (let i = 0; i < game.cycles.length; i++) {
+      const cycle = game.cycles[i];
+      if (me.enter === i+1) {
+        me.price = price ? price : cycle.price;
+        me.inside = true;
+      }
+      if (me.inside) {
+        me.reward += cycle.rewardPerPlayer
+        me.iterations++
+        if (cycle.vipPlace === me.place) {
+          me.reward += cycle.vip;
+        }
+        if (cycle.leavePlace === me.place) {
+          me.inside = false;
+          me.leave = i+1;
+        }
+      }
+      if (cycleIndex && cycleIndex === i) {
+        break;
+      }
+    }
+    if (!cycleIndex || cycleIndex === game.cycles.length - 1) {
+      if (me.inside) {
+        me.reward += game.cycles[game.cycles.length - 1].bankPerU;
+      }
+    }
+
+    me.result = me.reward - me.price;
+    return me;
+  }
+
+  function round(val) {
+    return +(val).toFixed(2);
+  }
+  function randomInArray (items) {
+    const total = items.reduce((accumulator, item) => (accumulator += item), 0);
+    const chance = lerp(0, total, Math.random());
+    let current = 0;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (current <= chance && chance < current + item) {
+        return i;
+      }
+      current += item;
+    }
+  }
+  function lerp (min, max, value) {
+    return ((1 - value) * min + value * max);
+  }
+  function getRndInteger(min, max) {
+    return Math.round(Math.random() * (max - min) + min);
+  }
+  function getRndFloat(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+</script>
+</body>
+</html>

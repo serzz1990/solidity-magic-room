@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.6.0",
+    "@truffle/hdwallet-provider": "^2.0.8",
+    "truffle": "^5.5.12",
+    "truffle-hdwallet-provider": "^1.0.17",
+    "web3": "^1.7.3"
+  },
+  "scripts": {
+    "compile": "truffle compile",
+    "deploy:testnet": "truffle migrate --network rinkeby",
+    "deploy:mainnet": "truffle migrate --network mainnet"
+  }
+}
