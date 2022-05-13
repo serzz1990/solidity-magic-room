@@ -27,53 +27,62 @@ contract("MagicRoom", (accounts) => {
   })
 
   context("view fns", async () => {
+    it("should return tokenomic", async () => {
+      const tokenimic = await contractInstance.getTokenimic.call();
+      expect(tokenimic.winners.toNumber()).to.be.a('number');
+      expect(tokenimic.vip.toNumber()).to.be.a('number');
+      expect(tokenimic.reward.toNumber()).to.be.a('number');
+      expect(tokenimic.fee.toNumber()).to.be.a('number');
+    })
     it("should return current room", async () => {
       await contractInstance.createRoom();
       const result = await contractInstance.getCurrentRoom.call();
-      expect(result.bank.toNumber() === 0).to.equal(true);
-      expect(result.active).to.equal(true);
+      expect(result.price.toNumber()).to.be.a('number');
+      expect(result.bank.toNumber()).to.be.a('number');
+      expect(result.step.toNumber()).to.be.a('number');
+      expect(result.chairs).to.be.a('array');
+      expect(result.active).to.be.a('boolean');
     })
   })
 
   context("enter to room", async () => {
     it("on chair", async () => {
       await contractInstance.createRoom();
-      await tokenContractInstance.transfer(bob, Web3.utils.toWei("100"));
-      await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: bob });
-      await contractInstance.enterToRoom(Web3.utils.toWei("1"), { from: bob });
+      await giveTokens(bob, 100);
+      await contractInstance.enterToRoom(toWei("1"), { from: bob });
       const room = await contractInstance.getCurrentRoom.call();
       expect(room.chairs.includes(bob)).to.equal(true);
+    })
+    it("small amount", async () => {
+      await contractInstance.createRoom();
+      await tokenContractInstance.transfer(bob, toWei("100"));
+      await tokenContractInstance.approve(contractInstance.address, toWei("1000000"), { from: bob });
+      await utils.shouldThrow(contractInstance.enterToRoom(toWei("0.0001"), { from: bob }));
     })
     it("amount should go up", async () => {
       await contractInstance.createRoom();
 
-      await tokenContractInstance.transfer(bob, Web3.utils.toWei("100"));
-      await tokenContractInstance.transfer(cavin, Web3.utils.toWei("100"));
+      await giveTokens(bob, 100);
+      await giveTokens(cavin, 100);
 
-      await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: bob });
-      await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: cavin });
-
-      const resultBob = await contractInstance.enterToRoom(Web3.utils.toWei("1"), { from: bob });
-      const resultCavin = await contractInstance.enterToRoom(Web3.utils.toWei("2"), { from: cavin });
+      const resultBob = await contractInstance.enterToRoom(toWei("1"), { from: bob });
+      const resultCavin = await contractInstance.enterToRoom(toWei("2"), { from: cavin });
 
       expect(resultBob.receipt.status).to.equal(true);
       expect(resultCavin.receipt.status).to.equal(true)
-      await utils.shouldThrow(contractInstance.enterToRoom(Web3.utils.toWei("2"), { from: cavin }));
+      await utils.shouldThrow(contractInstance.enterToRoom(toWei("2"), { from: cavin }));
     })
     it("rewards", async () => {
       await contractInstance.createRoom();
 
-      await tokenContractInstance.transfer(bob, Web3.utils.toWei("100"));
-      await tokenContractInstance.transfer(cavin, Web3.utils.toWei("100"));
+      await giveTokens(bob, 100);
+      await giveTokens(cavin, 100);
 
-      await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: bob });
-      await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: cavin });
+      await contractInstance.enterToRoom(toWei("1"), { from: bob });
+      await contractInstance.enterToRoom(toWei("2"), { from: cavin });
 
-      await contractInstance.enterToRoom(Web3.utils.toWei("1"), { from: bob });
-      await contractInstance.enterToRoom(Web3.utils.toWei("2"), { from: cavin });
-
-      const balanceBob = +Web3.utils.fromWei(await tokenContractInstance.balanceOf(bob));
-      const balanceCavin = +Web3.utils.fromWei(await tokenContractInstance.balanceOf(cavin));
+      const balanceBob = fromWei(await tokenContractInstance.balanceOf(bob));
+      const balanceCavin = fromWei(await tokenContractInstance.balanceOf(cavin));
 
       expect(balanceBob > 99).to.equal(true);
       expect(balanceCavin === 98).to.equal(true);
@@ -83,42 +92,54 @@ contract("MagicRoom", (accounts) => {
   it("finish", async () => {
     await contractInstance.createRoom();
 
-    await tokenContractInstance.transfer(bob, Web3.utils.toWei("100"));
-    await tokenContractInstance.transfer(cavin, Web3.utils.toWei("100"));
+    await giveTokens(bob, 100);
+    await giveTokens(cavin, 100);
 
-    await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: bob });
-    await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: cavin });
-
-    await contractInstance.enterToRoom(Web3.utils.toWei("1"), { from: bob });
-    await contractInstance.enterToRoom(Web3.utils.toWei("2"), { from: cavin });
-    const balanceBob1 = Web3.utils.fromWei(await tokenContractInstance.balanceOf(bob));
+    await contractInstance.enterToRoom(toWei("1"), { from: bob });
+    await contractInstance.enterToRoom(toWei("2"), { from: cavin });
+    const balanceBob1 = fromWei(await tokenContractInstance.balanceOf(bob));
 
     await contractInstance.finish();
+    const room = await contractInstance.getCurrentRoom.call();
+    const occupied = room.chairs.filter(a => a !== '0x0000000000000000000000000000000000000000').length;
+    const balanceBob2 = fromWei(await tokenContractInstance.balanceOf(bob));
 
-    const balanceBob2 = Web3.utils.fromWei(await tokenContractInstance.balanceOf(bob));
-    expect(balanceBob1 === "100").to.equal(true);
-    expect(balanceBob2 === "100.72").to.equal(true);
+    expect(room.active).to.equal(false);
+    expect(balanceBob1 === 100).to.equal(true);
+    expect(balanceBob2 === balanceBob1 + fromWei(room.bank) / occupied).to.equal(true);
   })
 
   it("withdraw", async () => {
     await contractInstance.createRoom();
+    const tokenimic = await contractInstance.getTokenimic.call();
 
-    await tokenContractInstance.transfer(bob, Web3.utils.toWei("100"));
-    await tokenContractInstance.transfer(cavin, Web3.utils.toWei("100"));
+    await giveTokens(bob, 100);
+    await giveTokens(cavin, 100);
 
-    await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: bob });
-    await tokenContractInstance.approve(contractInstance.address, Web3.utils.toWei("1000000"), { from: cavin });
+    await contractInstance.enterToRoom(toWei("1"), { from: bob });
+    await contractInstance.enterToRoom(toWei("2"), { from: cavin });
+    const fee = 3 * tokenimic.fee.toNumber() / 100;
 
-    await contractInstance.enterToRoom(Web3.utils.toWei("1"), { from: bob });
-    await contractInstance.enterToRoom(Web3.utils.toWei("2"), { from: cavin });
-
-    const balanceBefore = Web3.utils.fromWei(await contractInstance.balanceOf.call());
-    await contractInstance.withdraw();
-    const balanceAfter = +Web3.utils.fromWei(await contractInstance.balanceOf.call());
-    expect(balanceBefore === "0.02").to.equal(true);
+    const balanceBefore = fromWei(await contractInstance.balanceOf.call());
+    await contractInstance.withdraw(alice);
+    const balanceAfter = fromWei(await contractInstance.balanceOf.call());
+    expect(balanceBefore === fee).to.equal(true);
     expect(balanceAfter === 0).to.equal(true);
-    const balanceOf = await tokenContractInstance.balanceOf.call(alice);
-    expect(Web3.utils.fromWei(balanceOf) === "999999800.02").to.equal(true);
+    const balanceOf = fromWei(await tokenContractInstance.balanceOf.call(alice));
+    expect(balanceOf === 999999800 + fee).to.equal(true);
   })
 
+  function toWei (value) {
+    return Web3.utils.toWei(value.toString());
+  }
+
+  function fromWei (value) {
+    return +Web3.utils.fromWei(value);
+  }
+
+  async function giveTokens (to, amount) {
+    await tokenContractInstance.transfer(to, toWei(amount));
+    await tokenContractInstance.approve(contractInstance.address, toWei(amount), { from: to });
+  }
 })
+
