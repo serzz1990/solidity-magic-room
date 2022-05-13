@@ -97,16 +97,16 @@ contract("MagicRoom", (accounts) => {
 
     await contractInstance.enterToRoom(toWei("1"), { from: bob });
     await contractInstance.enterToRoom(toWei("2"), { from: cavin });
-    const balanceBob1 = fromWei(await tokenContractInstance.balanceOf(bob));
+    const balanceCavin1 = fromWei(await tokenContractInstance.balanceOf(cavin));
 
     await contractInstance.finish();
     const room = await contractInstance.getCurrentRoom.call();
     const occupied = room.chairs.filter(a => a !== '0x0000000000000000000000000000000000000000').length;
-    const balanceBob2 = fromWei(await tokenContractInstance.balanceOf(bob));
+    const balanceCavin2 = fromWei(await tokenContractInstance.balanceOf(cavin));
 
     expect(room.active).to.equal(false);
-    expect(balanceBob1 === 100).to.equal(true);
-    expect(balanceBob2 === balanceBob1 + fromWei(room.bank) / occupied).to.equal(true);
+    expect(balanceCavin1 === 98).to.equal(true);
+    expect(balanceCavin2 === balanceCavin1 + fromWei(room.bank) / occupied).to.equal(true);
   })
 
   it("withdraw", async () => {
